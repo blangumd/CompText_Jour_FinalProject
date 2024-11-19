@@ -1,0 +1,90 @@
+---
+title: "Final Project Summary"
+author: "Bridget Lang"
+date: '2024-11-16'
+output: html_document
+---
+*Disclaimer: This project is being conducted in support of Dr. Rob Wells, Associate Professor at the Phillip Merril College of Journalism, University of Maryland. Some verbiage in this summary is drawn directly from provided documentation about the project.* 
+
+See https://github.com/blangumd/CompText_Jour/blob/bridget/project-summary/Moley_lang_2.Rmd for current progress on analysis. 
+
+# Welcome to my final project!
+
+## Overview 
+
+This project will perform a basic narrative and topic analysis of the journalism of **Raymond Moley**, a prominent columnist who advocated a centrist conservative political vision from 1937 through 1967 in his books, weekly Newsweek column and syndicated newspaper column. 
+
+The goal of this project is to **measure patterns in wording, verbiage, themes, and sentiment** of Raymond Moley's poltitical reporting over time. This research will support a larger effort in analyzing the **influence of journalism and polticial activism on American elections, voting, and democracy at large**. 
+
+I am focusing on the time period of Moley's work from **1937-1952**, with an estimated **180 articles** to be analyzed. 
+
+## Overview of plan for content analysis
+
+For the analysis in the text of these articles, I plan on scraping the pdfs and making a dataframes that count the occurences of all two and three-word phrases. 
+I will also do some research about sentiment analysis of news coverage, as I believe it is important to not associate specific political views as negative or positive when conducting sentiment analysis or a codebook. 
+
+For the codebook, I will work to recognize different themes of phrases or sentences in articles, then provide a proper defintiion of this category. I am still a bit ill-informed on the process of creating a codebook so this will be the next major step I take. 
+
+## Libraries Used
+
+Some of these libraries are used only in this webpage, but this is all libraries used in the analysis done so far. 
+
+```{r echo = T, results = 'hide', error=F, warning=F, message=F}
+library(tidyverse)
+library(pdftools)
+library(dplyr)
+library(rio)
+library(tidytext)
+library(quanteda)
+library(knitr)
+```
+
+## Data Sample
+
+This is the index of the all articles we currently have for this era, ranging from 1942-1956. 
+
+```{r echo=F}
+article_index <-  read.csv("./article_index.csv")
+kable(article_index, caption="Article Index")
+
+```
+
+This sample text from 9 sample articles.
+
+```{r echo=F}
+article_text <-  read.csv("./articles_lines.csv")
+kable(article_text[1:10,], caption="Text Sample")
+
+```
+
+## Columns and Rows
+```{r echo = F}
+nrows <- nrow(article_text)
+ncols <- ncol(article_text)
+
+glue::glue("The number of rows is {nrows}")
+glue::glue("The number of columns is {ncols}")
+
+
+```
+## Distribution of Data Over Time 
+
+For the purpose of this assignment I am making a chart that shows the number of articles by year but it is <br>
+    1. Very ugly <br>
+    2. Not very useful given that there are only 15 articles from 3 years.
+  
+```{r echo = F}
+
+year_counts <- article_index %>%
+  count(year)
+
+year_counts
+
+ggplot(year_counts, aes(x = year, y = n, fill=n)) +
+  geom_point(stat = "identity") +
+  theme(legend.position = "none") +
+  labs(title = "Number of Articles by Year",
+       x = "Year",
+       y = "Number of Articles")
+
+```
