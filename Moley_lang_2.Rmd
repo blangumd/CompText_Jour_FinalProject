@@ -156,12 +156,23 @@ not_ai_lines <- not_ai_lines %>%
   inner_join(not_ai_index, c("filename")) 
 not_ai_lines <- not_ai_lines %>%
   select(sentence, date, year, month, day, filename)
-# Print the result
+# get word counts
+not_ai_word_counts <- not_ai_lines
+not_ai_word_counts <- not_ai_word_counts %>%
+    mutate(word_count = str_count(sentence, "\\S+")) %>% # Count words in each sentence
+    group_by(filename) %>%
+    summarise(total_word_count = sum(word_count, na.rm = TRUE))
+
+not_ai_index <- not_ai_index %>%
+  inner_join(not_ai_word_counts, "filename")
+
 
 ```
 
 # Clean up ai articles and get lines into dataframe 
 ```{r}
+
+ai_articles_df <- rename(ai_articles_df, sentence = value)
 
 ai_articles_df$sentence <- iconv(ai_articles_df$sentence, from = "", to = "UTF-8", sub = "")  # Replace invalid characters with ""
 
@@ -189,6 +200,23 @@ ai_lines
 ai_lines <- ai_lines %>%
   select(sentence, date, year, month, day, filename)
 # Print the result
+
+ai_word_counts <- ai_lines
+ai_word_counts <- ai_word_counts %>%
+    mutate(word_count = str_count(sentence, "\\S+")) %>% # Count words in each sentence
+    group_by(filename) %>%
+    summarise(total_word_count = sum(word_count, na.rm = TRUE))
+
+ai_index <- ai_index %>%
+  inner_join(ai_word_counts, c("filename"))
+
+article_index <- NULL
+
+article_index <- ai_index %>%
+  bind_rows(not_ai_index)
+  
+write.csv(article_index,"./article_index.csv")
+
 
 ```
 # Merge text into one large dataframe 
@@ -220,12 +248,19 @@ bigrams <- article_text %>% mutate(sentence= str_squish(sentence)) |>
   mutate(text = tolower(sentence)) |>  
   mutate(text = gsub("\\d+", "", text)) |>
   mutate(text = str_replace_all(text, "raymond", "")) %>% 
+  mutate(text = str_replace_all(text, "newsweek", "")) %>% 
+  mutate(text = str_replace_all(text, "image", "")) %>%
+  mutate(text = str_replace_all(text, "perspective", "")) %>%
   mutate(text = str_replace_all(text, "- ", "")) %>%
   mutate(text = str_replace_all(text, " -", "")) %>%
   mutate(text = str_replace_all(text, " - ", "")) %>%
   unnest_tokens(word, text, token="ngrams", n=2 ) %>%
   filter(!word %in% stop_words$word) %>%
-  filter(!is.na(word))
+  filter(!word == "minor inaccuracies") %>%
+  filter(!word == "text extraction") %>%
+  filter(!word == "text version") %>%
+
+    filter(!is.na(word))
 
 bigrams <- bigrams %>%
   select(word, date, year, month, day, filename)
@@ -262,4 +297,6 @@ top_20_bigrams <- bigram_counts |>
   select(bigram, n)
 
 top_20_bigrams
+write.csv(top_20_bigrams, "top_20_bigrams.csv")
+
 ```

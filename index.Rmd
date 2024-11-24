@@ -1,7 +1,7 @@
 ---
 title: "Final Project Summary"
 author: "Bridget Lang"
-date: '2024-11-16'
+date: '2024-11-23'
 output: html_document
 ---
 *Disclaimer: This project is being conducted in support of Dr. Rob Wells, Associate Professor at the Phillip Merril College of Journalism, University of Maryland. Some verbiage in this summary is drawn directly from provided documentation about the project.* 
@@ -18,12 +18,34 @@ The goal of this project is to **measure patterns in wording, verbiage, themes, 
 
 I am focusing on the time period of Moley's work from **1937-1952**, with an estimated **180 articles** to be analyzed. 
 
-## Overview of plan for content analysis
 
-For the analysis in the text of these articles, I plan on scraping the pdfs and making a dataframes that count the occurences of all two and three-word phrases. 
-I will also do some research about sentiment analysis of news coverage, as I believe it is important to not associate specific political views as negative or positive when conducting sentiment analysis or a codebook. 
+## Background on Raymond Moley
 
-For the codebook, I will work to recognize different themes of phrases or sentences in articles, then provide a proper defintiion of this category. I am still a bit ill-informed on the process of creating a codebook so this will be the next major step I take. 
+Born in 1886, Raymond Moley was an American journalist, presidential advisor, and political economist. He is well known as a founder of the "Brain Trust", which was Roosovelt's group of advisors during his campaign in 1932. This group helped pen the New Deal, which was a group of controversial policy measures passed by Roosovelt to help aid in recovery from the great depression. Moley was a outspoken supporter of the New Deal early in his work with FDR, but as the presidency continued, his opinions began to shift and he ended up becoming one of its largest critics. He used his platform as a political columnist to advise and provide insight on what he believed to be the successes and issues within the political climate of his time. 
+
+https://case.edu/ech/articles/m/moley-raymond
+https://www.britannica.com/biography/Raymond-Charles-Moley
+https://www.presidency.ucsb.edu/documents/remarks-presenting-the-presidential-medal-freedom-eight-journalists
+https://www.britannica.com/event/New-Deal
+
+## Overview of data, and a plan for content analysis
+
+The data itself is currently a collection of 40 articles, written by Raymond Moley for Newsweek between the years 1942 and 1960. For each article there is a known filename, length, and date of publication, along with the contents of each article. 
+
+To properly get all of the data in the proper format, I had to split the appraoch into articles that were scraped  not using AI and those that were. Overall, I took the following steps <br>
+<p>
+  1. Loaded the names of non-ai text files into their own index "not_ai_index". 
+  2. Load the names of the ai text files into their own index "ai_index". <br>
+  3. Combine indexes into one big one <br>
+  4. Compile the text for the non-ai files <br>
+          a. The entire context of each non-ai file was added as its own line so I had to create a function that separated the contents of one row into rows of 12 word sentences. <br>
+  5. Compile the text for the ai files <br>
+  6. Join the text into one large dataframe <br>
+  7. Extract word count from the contents and add this value to the indexes <br>
+  8. Create bigrams <br>
+  </p>
+
+In reviewing background about Moley as well as reading the articles themselves, it is clear that a major theme of Moley's writing during this time is about the economy, economic policies, and critiquing them. Thus, I plan on creating categories that reflect these commonalities in theme, as well as categories that address commonalities in tone as well, such as clear statement of criticism of a president or policy, or outward support. 
 
 ## Libraries Used
 
@@ -41,7 +63,7 @@ library(knitr)
 
 ## Data Sample
 
-This is the index of the all articles we currently have for this era, ranging from 1942-1956. 
+This is the index of the all articles we currently have for this era, ranging from 1942-1960. 
 
 ```{r echo=F}
 article_index <-  read.csv("./article_index.csv")
@@ -57,6 +79,37 @@ kable(article_text[1:10,], caption="Text Sample")
 
 ```
 
+## Statistics about the data 
+```{r echo = F}
+
+not_ai_index <-  read.csv("./not_ai_index.csv")
+
+nrows <- nrow(article_index)
+ncols <- ncol(article_text)
+mean_length <- mean(article_index$total_word_count)
+mean_year <- mean(article_index$year)
+
+year_counts <- 
+  article_index %>%
+  count(year)
+
+max_count <- max(year_counts$n)
+max_year <- year_counts %>%
+  select(year) %>%
+  filter(year_counts$n == max_count)
+                  
+
+glue::glue("There are {nrows} articles");
+
+glue::glue("There is an average of {as.integer(mean_length)} words per article")
+
+glue::glue("The average year of publication is {as.integer(mean_year)}, with the majority of articles written in {max_year$year}.")
+
+
+
+
+```
+
 ## Columns and Rows
 ```{r echo = F}
 nrows <- nrow(article_text)
@@ -67,24 +120,45 @@ glue::glue("The number of columns is {ncols}")
 
 
 ```
-## Distribution of Data Over Time 
 
-For the purpose of this assignment I am making a chart that shows the number of articles by year but it is <br>
-    1. Very ugly <br>
-    2. Not very useful given that there are only 15 articles from 3 years.
-  
+
+## Top 20 Bigrams
 ```{r echo = F}
 
-year_counts <- article_index %>%
-  count(year)
+top_20_bigrams <-  read.csv("./top_20_bigrams.csv")
 
-year_counts
+kable(top_20_bigrams, caption="Top 20 Bigrams")
 
-ggplot(year_counts, aes(x = year, y = n, fill=n)) +
-  geom_point(stat = "identity") +
-  theme(legend.position = "none") +
-  labs(title = "Number of Articles by Year",
+```
+
+
+## Distribution of Data Over Time 
+
+
+I am making a chart that displays the use of the word "republican" over time to see if it shows any indication of his shift toward republicans.
+  
+```{r echo = F}
+one_word_per_row <- read.csv("./one_word_per_row.csv")
+
+count_word_per_year <- function(data, target_word) {
+  data %>%
+    filter(word == target_word) %>%       
+    group_by(year) %>%                   
+    summarise(count = n(), .groups = "drop") 
+}
+
+rep_count <- count_word_per_year(one_word_per_row, "republican")
+
+dem_count <- count_word_per_year(one_word_per_row, "democrat")
+
+year_counts <- rep_count %>%
+  left_join(dem_count, "year") 
+
+year_counts <- rename(year_counts, "rep_count" = `count.x`, "dem_count" = `count.y`)
+
+ggplot(rep_count, aes(x=year)) + 
+  geom_line(aes(y = count), color = "darkred") + 
+  labs(title = "Usage of the Word 'Republican' Over Time",
        x = "Year",
-       y = "Number of Articles")
-
+       y = "Count")
 ```
