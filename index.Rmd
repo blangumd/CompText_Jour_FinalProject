@@ -30,6 +30,8 @@ https://www.britannica.com/event/New-Deal
 
 ## Overview of data, and a plan for content analysis
 
+https://github.com/blangumd/CompText_Jour_FinalProject/blob/main/article_lines.csv
+
 The data itself is currently a collection of 40 articles, written by Raymond Moley for Newsweek between the years 1942 and 1960. For each article there is a known filename, length, and date of publication, along with the contents of each article. 
 
 To properly get all of the data in the proper format, I had to split the appraoch into articles that were scraped  not using AI and those that were. Overall, I took the following steps <br>
