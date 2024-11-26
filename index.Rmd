@@ -68,15 +68,15 @@ library(knitr)
 This is the index of the all articles we currently have for this era, ranging from 1942-1960. 
 
 ```{r echo=F}
-article_index <-  read.csv("./article_index.csv")
-kable(article_index, caption="Article Index")
+article_index <-  read.csv("./data/article_index.csv")
+kable(head(article_index), caption="Article Index")
 
 ```
 
 This sample text from 9 sample articles.
 
 ```{r echo=F}
-article_text <-  read.csv("./articles_lines.csv")
+article_text <-  read.csv("./data/articles_lines.csv")
 kable(article_text[1:10,], caption="Text Sample")
 
 ```
@@ -84,7 +84,7 @@ kable(article_text[1:10,], caption="Text Sample")
 ## Statistics about the data 
 ```{r echo = F}
 
-not_ai_index <-  read.csv("./not_ai_index.csv")
+not_ai_index <-  read.csv("./data/not_ai_index.csv")
 
 nrows <- nrow(article_index)
 ncols <- ncol(article_text)
@@ -127,7 +127,7 @@ glue::glue("The number of columns is {ncols}")
 ## Top 20 Bigrams
 ```{r echo = F}
 
-top_20_bigrams <-  read.csv("./top_20_bigrams.csv")
+top_20_bigrams <-  read.csv("./data/top_20_bigrams.csv")
 
 kable(top_20_bigrams, caption="Top 20 Bigrams")
 
@@ -140,7 +140,7 @@ kable(top_20_bigrams, caption="Top 20 Bigrams")
 I am making a chart that displays the use of the word "republican" over time to see if it shows any indication of his shift toward republicans.
   
 ```{r echo = F}
-one_word_per_row <- read.csv("./one_word_per_row.csv")
+one_word_per_row <- read.csv("./data/one_word_per_row.csv")
 
 count_word_per_year <- function(data, target_word) {
   data %>%
