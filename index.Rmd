@@ -1,18 +1,14 @@
 ---
-title: "Final Project Summary"
+title: "Content Analysis of Raymond Moley’s Reporting from 1936 - 1964"
 author: "Bridget Lang"
-date: '2024-11-23'
+date: '2024-12-2'
 output: html_document
 ---
 *Disclaimer: This project is being conducted in support of Dr. Rob Wells, Associate Professor at the Phillip Merril College of Journalism, University of Maryland. Some verbiage in this summary is drawn directly from provided documentation about the project.* 
 
-See https://github.com/blangumd/CompText_Jour/blob/bridget/project-summary/Moley_lang_2.Rmd for current progress on analysis. 
+See https://github.com/blangumd/CompText_Jour_FinalProject/blob/main/data/data_scraper.Rmd for current progress on analysis. 
 
-# Welcome to my final project!
-
-## Overview 
-
-This project will perform a basic narrative and topic analysis of the journalism of **Raymond Moley**, a prominent columnist who advocated a centrist conservative political vision from 1937 through 1967 in his books, weekly Newsweek column and syndicated newspaper column. 
+This project aims to perform a basic narrative and topic analysis of the journalism of **Raymond Moley**, a prominent columnist who advocated a centrist conservative political vision from 1937 through 1967 in his books, weekly Newsweek column and syndicated newspaper column. 
 
 The goal of this project is to **measure patterns in wording, verbiage, themes, and sentiment** of Raymond Moley's poltitical reporting over time. This research will support a larger effort in analyzing the **influence of journalism and polticial activism on American elections, voting, and democracy at large**. 
 
@@ -30,30 +26,16 @@ https://www.britannica.com/event/New-Deal
 
 ## Overview of data, and a plan for content analysis
 
-https://github.com/blangumd/CompText_Jour_FinalProject/blob/main/article_lines.csv
+https://github.com/blangumd/CompText_Jour_FinalProject/blob/main/data/article_lines.csv
 
 The data itself is currently a collection of 40 articles, written by Raymond Moley for Newsweek between the years 1942 and 1960. For each article there is a known filename, length, and date of publication, along with the contents of each article. 
-
-To properly get all of the data in the proper format, I had to split the appraoch into articles that were scraped  not using AI and those that were. Overall, I took the following steps <br>
-<p>
-  1. Loaded the names of non-ai text files into their own index "not_ai_index". 
-  2. Load the names of the ai text files into their own index "ai_index". <br>
-  3. Combine indexes into one big one <br>
-  4. Compile the text for the non-ai files <br>
-          a. The entire context of each non-ai file was added as its own line so I had to create a function that separated the contents of one row into rows of 12 word sentences. <br>
-  5. Compile the text for the ai files <br>
-  6. Join the text into one large dataframe <br>
-  7. Extract word count from the contents and add this value to the indexes <br>
-  8. Create bigrams <br>
-  </p>
-
-In reviewing background about Moley as well as reading the articles themselves, it is clear that a major theme of Moley's writing during this time is about the economy, economic policies, and critiquing them. Thus, I plan on creating categories that reflect these commonalities in theme, as well as categories that address commonalities in tone as well, such as clear statement of criticism of a president or policy, or outward support. 
 
 ## Libraries Used
 
 Some of these libraries are used only in this webpage, but this is all libraries used in the analysis done so far. 
 
 ```{r echo = T, results = 'hide', error=F, warning=F, message=F}
+library(textdata)
 library(tidyverse)
 library(pdftools)
 library(dplyr)
@@ -61,6 +43,7 @@ library(rio)
 library(tidytext)
 library(quanteda)
 library(knitr)
+library(formattable)
 ```
 
 ## Data Sample
@@ -134,12 +117,14 @@ kable(top_20_bigrams, caption="Top 20 Bigrams")
 ```
 
 
-## Distribution of Data Over Time 
-
-
-I am making a chart that displays the use of the word "republican" over time to see if it shows any indication of his shift toward republicans.
+## Economic vs Political Articles Over Time
   
 ```{r echo = F}
+
+political_terms <- read.csv("./data/Political_Terms.csv")
+
+economic_terms <- read.csv("./data/Economic_Terms.csv")
+
 one_word_per_row <- read.csv("./data/one_word_per_row.csv")
 
 count_word_per_year <- function(data, target_word) {
@@ -149,18 +134,292 @@ count_word_per_year <- function(data, target_word) {
     summarise(count = n(), .groups = "drop") 
 }
 
-rep_count <- count_word_per_year(one_word_per_row, "republican")
+political_articles <- one_word_per_row %>%
+  select(filename, year, word) %>%
+  filter(word %in% political_terms$Word )
 
-dem_count <- count_word_per_year(one_word_per_row, "democrat")
+political_articles <- political_articles %>%
+  select(filename, year)
 
-year_counts <- rep_count %>%
-  left_join(dem_count, "year") 
+political_articles <- distinct(political_articles)
 
-year_counts <- rename(year_counts, "rep_count" = `count.x`, "dem_count" = `count.y`)
+economic_articles <- one_word_per_row %>%
+  select(filename, year, word) %>%
+  filter(word %in% economic_terms$Word )
 
-ggplot(rep_count, aes(x=year)) + 
-  geom_line(aes(y = count), color = "darkred") + 
-  labs(title = "Usage of the Word 'Republican' Over Time",
-       x = "Year",
-       y = "Count")
+economic_articles <- economic_articles %>%
+   select(filename, year)
+
+economic_articles <- distinct(economic_articles)
+
+both_econ_political <- political_articles %>%
+  select(filename, year) %>%
+  filter(filename %in% economic_articles$filename)
+
+only_political <- political_articles %>%
+  select(filename, year) %>%
+  filter(!filename %in% economic_articles$filename)
+
+only_economic <- economic_articles %>%
+  select(filename, year) %>%
+  filter(!filename %in% political_articles$filename)
+
+political_articles_by_year <- political_articles %>%
+  count(year) %>%
+  group_by(year)
+
+political_articles_by_year <- political_articles_by_year %>%
+  mutate(type = "political")
+
+economic_articles_by_year <- economic_articles %>%
+  count(year) %>%
+  group_by(year)
+
+economic_articles_by_year <- economic_articles_by_year %>%
+  mutate(type = "economic")
+
+article_type_by_year <- economic_articles_by_year %>%
+  bind_rows(political_articles_by_year)
+
+ggplot(article_type_by_year, aes(year, n, fill=type)) +
+  geom_bar(stat="identity", position="dodge") + 
+  labs(title = "Political vs. Economic Articles Written by Raymond Moley, 1942 - 1960",
+        x = "Year",
+        y = "Count")
+
+```
+
+## Sentiment Analysis of Coverage of Presidential Candidates 
+  
+```{r echo = F}
+
+nixon_articles <- article_text %>%
+  filter(str_detect(sentence, "Nixon")) %>%
+  select(filename, year) %>%
+  distinct(filename, year)
+
+goldwater_articles <- article_text %>%
+  filter(str_detect(sentence, "Goldwater")) %>%
+  select(filename, year) %>%
+  distinct(filename, year)
+
+roosevelt_articles <- article_text %>%
+  filter(str_detect(sentence, "Roosevelt")) %>%
+  select(filename, year) %>%
+  distinct(filename, year)
+
+dewey_articles <- article_text %>%
+  filter(str_detect(sentence, "Dewey")) %>%
+  select(filename, year) %>%
+  distinct(filename, year)
+
+
+nrc_sentiments <- get_sentiments("nrc")
+afinn_sentiments <- get_sentiments("afinn")
+
+```
+Moley was an adviser to presidents Thomas Dewey in 1944 and 1948, Richard Nixon in 1960,and Barry Goldwater in 1964. Note that Goldwater's election is outside the range of these articles so there is no coverage of him yet. He virtually advised every republican presidential candidate from 1936-1964, while also maintaining his role as a political columnist for Newsweek. His duel role in political journalism and political advising makes his reporting particularly interesting to look at, specifically his coverage of the candidates he associated with and the sentiment of this coverage. 
+
+### Dewey
+Moley first covered Dewey in October 1942, which is two years before Dewey took office for the first time. 
+```{r echo = F, results = 'hide', error=F, warning=F, message=F}
+
+dewey_text <- article_text %>%
+  select(filename, year, sentence) %>%
+  filter(filename %in% dewey_articles$filename)
+
+
+dewey_text_tokenized <- dewey_text %>% 
+  select(sentence) %>% 
+  mutate(sentence = str_replace_all(sentence, "- ", "")) %>% 
+  unnest_tokens(word, sentence) %>% 
+  filter(!word %in% stop_words$word) %>% 
+  filter(!grepl('[0-9]', word))
+
+dewey_sentiments_all <- dewey_text_tokenized %>%
+  inner_join(nrc_sentiments, relationship = "many-to-many") %>%
+  count(sentiment, sort = TRUE) %>% 
+  mutate(pct_total =round(n/sum(n), digits=2))
+
+dewey_sentiments_all <- dewey_sentiments_all %>%
+  mutate(percent = percent(pct_total)) %>%
+  mutate(president = "Dewey")
+
+ggplot(dewey_sentiments_all, aes(x="", y=pct_total, fill=sentiment)) +
+  geom_bar(stat="identity", width=1) +
+  coord_polar("y", start=0) +
+  geom_text(aes(label = percent),
+            position = position_stack(vjust = 0.5)) +
+  labs(title = "Sentiment Percentage of Articles by Raymond Moley Mentioning Thomas Dewey") + 
+  theme(axis.ticks.x=element_blank(),
+        axis.text.x=element_blank(),
+        axis.title.x=element_blank(),
+        axis.title.y=element_blank())
+
+
+```
+
+### Nixon
+Moley first covered Nixon in May 1960, which is the same year that Moley was an acting adviser for Nixon. 
+```{r echo = F, results = 'hide', error=F, warning=F, message=F}
+
+nixon_text <- article_text %>%
+  select(filename, year, sentence) %>%
+  filter(filename %in% nixon_articles$filename)
+
+nixon_text_tokenized <- nixon_text %>% 
+  select(sentence) %>% 
+  mutate(sentence = str_replace_all(sentence, "- ", "")) %>% 
+  unnest_tokens(word, sentence) %>% 
+  filter(!word %in% stop_words$word) %>% 
+  filter(!grepl('[0-9]', word))
+
+nixon_sentiments_all <- nixon_text_tokenized %>%
+  inner_join(nrc_sentiments, relationship = "many-to-many") %>%
+  count(sentiment, sort = TRUE) %>% 
+  mutate(pct_total =round(n/sum(n), digits=2))
+
+nixon_sentiments_all <- nixon_sentiments_all %>%
+  mutate(percent = percent(pct_total)) %>%
+  mutate(president = "Nixon")
+
+ggplot(nixon_sentiments_all, aes(x="", y=pct_total, fill=sentiment)) +
+  geom_bar(stat="identity", width=1) +
+  coord_polar("y", start=0) +
+  geom_text(aes(label = percent),
+            position = position_stack(vjust = 0.5)) +
+  labs(title = "Sentiment Percentage of Articles by Raymond Moley Mentioning Richard Nixon") + 
+  theme(axis.ticks.x=element_blank(),
+        axis.text.x=element_blank(),
+        axis.title.x=element_blank(),
+        axis.title.y=element_blank())
+
+
+```
+
+### Comaprison
+```{r echo = F, results = 'hide', error=F, warning=F, message=F}
+
+nixon_dewey_sentiments <- dewey_sentiments_all %>%
+  bind_rows(nixon_sentiments_all)
+
+ggplot(nixon_dewey_sentiments, aes(sentiment, percent, fill=president)) +
+  geom_bar(stat="identity", position="dodge") +
+  labs(title = "Presence of Sentiment in Articles by Raymond Moley Mentioning Richard Nixon vs. Thomas Dewey",
+        x = "Sentiment",
+        y = "Percentage of Total Text") + 
+  theme(axis.text.x = element_text(angle = 45, vjust=0.5)) + 
+  scale_fill_manual(values = c("forestgreen", "purple"))
+
+
+```
+
+
+## Overall Sentiment Analysis 
+
+### All Articles
+```{r echo = F, results = 'hide', error=F, warning=F, message=F}
+
+all_text_tokenized <- article_text %>% 
+  select(sentence) %>% 
+  mutate(sentence = str_replace_all(sentence, "- ", "")) %>% 
+  unnest_tokens(word, sentence) %>% 
+  filter(!word %in% stop_words$word) %>% 
+  filter(!grepl('[0-9]', word))
+
+sentiments_all <- all_text_tokenized %>%
+  inner_join(nrc_sentiments, relationship = "many-to-many") %>%
+  count(sentiment, sort = TRUE) %>% 
+  mutate(pct_total =round(n/sum(n), digits=2))
+
+sentiments_all <- sentiments_all %>%
+  mutate(percent = percent(pct_total))
+
+ggplot(sentiments_all, aes(x="", y=pct_total, fill=sentiment)) +
+  geom_bar(stat="identity", width=1) +
+  coord_polar("y", start=0) +
+  geom_text(aes(label = percent),
+            position = position_stack(vjust = 0.5)) +
+  labs(title = "Sentiment Percentage of Articles by Raymond Moley, 1942 - 1964") + 
+  theme(axis.ticks.x=element_blank(),
+        axis.text.x=element_blank(),
+        axis.title.x=element_blank(),
+        axis.title.y=element_blank())
+
+
+```
+
+### By Decade
+```{r echo = F, results = 'hide', error=F, warning=F, message=F}
+#fourties
+fourties_text <- article_text %>% 
+  filter((round(year / 10) * 10) == 1940)
+
+fourties_text_tokenized <- fourties_text %>% 
+  select(sentence) %>% 
+  mutate(sentence = str_replace_all(sentence, "- ", "")) %>% 
+  unnest_tokens(word, sentence) %>% 
+  filter(!word %in% stop_words$word) %>% 
+  filter(!grepl('[0-9]', word))
+
+fourties_sentiments <- fourties_text_tokenized %>%
+  inner_join(nrc_sentiments, relationship = "many-to-many") %>%
+  count(sentiment, sort = TRUE) %>% 
+  mutate(pct_total =round(n/sum(n), digits=2))
+
+fourties_sentiments <- fourties_sentiments %>%
+  mutate(percent = percent(pct_total)) %>%
+  mutate(decade = "Fourties")
+
+#fifties
+fifties_text <- article_text %>% 
+  filter((round(year / 10) * 10) == 1950)
+
+fifties_text_tokenized <- fifties_text %>% 
+  select(sentence) %>% 
+  mutate(sentence = str_replace_all(sentence, "- ", "")) %>% 
+  unnest_tokens(word, sentence) %>% 
+  filter(!word %in% stop_words$word) %>% 
+  filter(!grepl('[0-9]', word))
+
+fifties_sentiments <- fifties_text_tokenized %>%
+  inner_join(nrc_sentiments, relationship = "many-to-many") %>%
+  count(sentiment, sort = TRUE) %>% 
+  mutate(pct_total =round(n/sum(n), digits=2))
+
+fifties_sentiments <- fifties_sentiments %>%
+  mutate(percent = percent(pct_total)) %>%
+  mutate(decade = "Fifties")
+
+#sixties
+sixties_text <- article_text %>% 
+  filter((round(year / 10) * 10) == 1960)
+
+sixties_text_tokenized <- sixties_text %>% 
+  select(sentence) %>% 
+  mutate(sentence = str_replace_all(sentence, "- ", "")) %>% 
+  unnest_tokens(word, sentence) %>% 
+  filter(!word %in% stop_words$word) %>% 
+  filter(!grepl('[0-9]', word))
+
+sixties_sentiments <- sixties_text_tokenized %>%
+  inner_join(nrc_sentiments, relationship = "many-to-many") %>%
+  count(sentiment, sort = TRUE) %>% 
+  mutate(pct_total =round(n/sum(n), digits=2))
+
+sixties_sentiments <- sixties_sentiments %>%
+  mutate(percent = percent(pct_total)) %>%
+  mutate(decade = "Sixties")
+
+decade_sentiment_all <- fourties_sentiments %>%
+  bind_rows(fifties_sentiments %>% bind_rows(sixties_sentiments))
+
+ggplot(decade_sentiment_all, aes(sentiment, percent, fill=decade)) +
+  geom_bar(stat="identity", position="dodge") +
+  labs(title = "Presence of Sentiment in Articles by Raymond Moley, Grouped by Decade",
+        x = "Sentiment",
+        y = "Percentage of Total Text") + 
+  theme(axis.text.x = element_text(angle = 45, vjust=0.5)) + 
+  scale_fill_manual(values = c("orange", "purple", "navy"))
+
 ```

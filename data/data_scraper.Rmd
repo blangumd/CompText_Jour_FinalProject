@@ -261,8 +261,15 @@ bigrams <- article_text %>% mutate(sentence= str_squish(sentence)) |>
   filter(!word == "minor inaccuracies") %>%
   filter(!word == "text extraction") %>%
   filter(!word == "text version") %>%
+  filter(!word == "patent office") %>%
+  filter(!word == "u.s. patent") %>%
+  filter(!word == "u.s patent") %>%
+  filter(!word == "provided note") %>%
+  filter(!word == "column layout") %>%
 
-    filter(!is.na(word))
+  filter(!word == "registered u.s") %>%
+
+  filter(!is.na(word))
 
 bigrams <- bigrams %>%
   select(word, date, year, month, day, filename)
@@ -294,7 +301,7 @@ write.csv(bigram_counts, "bigram_counts.csv")
 
   
 top_20_bigrams <- bigram_counts |> 
-   top_n(20) |> 
+  head(20) |> 
   mutate(bigram = paste(word1, " ", word2)) |> 
   select(bigram, n)
 
