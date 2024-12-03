@@ -222,6 +222,16 @@ Moley was an adviser to presidents Thomas Dewey in 1944 and 1948, Richard Nixon 
 
 ### Dewey
 Moley first covered Dewey in October 1942, which is two years before Dewey took office for the first time. 
+
+Example of positive coverage:
+
+"But Dewey can afford to coast because, if the polls are correct, nothing short of the commission of homicide or arson could lose him the election."
+
+Example of negative coverage: 
+
+"Disaster befell Thomas E. Dewey in 1948 because his great confidence in polls shaped his carefree, "it's-in-the-bag" campaign. But at the
+moment nothing so occupies the attention of several putative Presidential candidates as polls."
+
 ```{r echo = F, results = 'hide', error=F, warning=F, message=F}
 
 dewey_text <- article_text %>%
@@ -261,6 +271,10 @@ ggplot(dewey_sentiments_all, aes(x="", y=pct_total, fill=sentiment)) +
 
 ### Nixon
 Moley first covered Nixon in May 1960, which is the same year that Moley was an acting adviser for Nixon. 
+
+Example of anticipation:
+
+"But while these eminent men have been sweeping this state over and over, a far, far more important operation has been in action—something to reckon with after Warren, Nixon, Knowland, Knight, even Mr. Eisenhower, have vanished from the front pages."
 ```{r echo = F, results = 'hide', error=F, warning=F, message=F}
 
 nixon_text <- article_text %>%
