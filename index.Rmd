@@ -1,5 +1,5 @@
 ---
-title: "Content Analysis of Raymond Moley’s Reporting from 1936 - 1964"
+title: "Content Analysis of Raymond Moley’s Reporting from 1942 - 1964"
 author: "Bridget Lang"
 date: '2024-12-2'
 output: html_document
@@ -12,7 +12,7 @@ This project aims to perform a basic narrative and topic analysis of the journal
 
 The goal of this project is to **measure patterns in wording, verbiage, themes, and sentiment** of Raymond Moley's poltitical reporting over time. This research will support a larger effort in analyzing the **influence of journalism and polticial activism on American elections, voting, and democracy at large**. 
 
-I am focusing on the time period of Moley's work from **1937-1952**, with an estimated **180 articles** to be analyzed. 
+I am focusing on the time period of Moley's work from **1942-1952**, with **105 articles**  analyzed. 
 
 
 ## Background on Raymond Moley
@@ -35,6 +35,8 @@ The data itself is currently a collection of 40 articles, written by Raymond Mol
 Some of these libraries are used only in this webpage, but this is all libraries used in the analysis done so far. 
 
 ```{r echo = T, results = 'hide', error=F, warning=F, message=F}
+
+
 library(textdata)
 library(tidyverse)
 library(pdftools)
@@ -44,51 +46,63 @@ library(tidytext)
 library(quanteda)
 library(knitr)
 library(formattable)
-```
+library(forcats)
 
-## Data Sample
-
-This is the index of the all articles we currently have for this era, ranging from 1942-1960. 
-
-```{r echo=F}
-article_index <-  read.csv("./data/article_index.csv")
-kable(head(article_index), caption="Article Index")
-
-```
-
-This sample text from 9 sample articles.
-
-```{r echo=F}
-article_text <-  read.csv("./data/articles_lines.csv")
-kable(article_text[1:10,], caption="Text Sample")
-
+library(tidyverse)
+library(tidytext)
+library(rio)
+library(readtext)
+#topic modeling
+library(quanteda)
+library(tm)
+library(topicmodels)
+library(lda)
+library(ldatuning)
+# from tutorial packages
+library(DT)
+library(knitr) 
+library(kableExtra) 
+library(reshape2)
+library(ggplot2)
+library(wordcloud)
+library(pals)
+library(SnowballC)
+library(flextable)
 ```
 
 ## Statistics about the data 
 ```{r echo = F}
 
-not_ai_index <-  read.csv("./data/not_ai_index.csv")
+article_index <-  read.csv("./data/article_index.csv")
+article_index <- rename(article_index, year = Year)
+
+articles_text <-  read.csv("./data/articles_text.csv")
 
 nrows <- nrow(article_index)
-ncols <- ncol(article_text)
-mean_length <- mean(article_index$total_word_count)
+ncols <- ncol(article_index)
+
 mean_year <- mean(article_index$year)
+
+min_year <- min(article_index$year)
+
+max_year <- max(article_index$year)
+
 
 year_counts <- 
   article_index %>%
   count(year)
 
 max_count <- max(year_counts$n)
-max_year <- year_counts %>%
+max_years <- year_counts %>%
   select(year) %>%
   filter(year_counts$n == max_count)
                   
 
 glue::glue("There are {nrows} articles");
 
-glue::glue("There is an average of {as.integer(mean_length)} words per article")
+glue::glue("The earliest year of publication is {as.integer(min_year)}, and the latest is {max_year}.")
 
-glue::glue("The average year of publication is {as.integer(mean_year)}, with the majority of articles written in {max_year$year}.")
+glue::glue("The average year of publication is {as.integer(mean_year)}, with the majority of articles written in {max_years$year}.")
 
 
 
@@ -97,8 +111,8 @@ glue::glue("The average year of publication is {as.integer(mean_year)}, with the
 
 ## Columns and Rows
 ```{r echo = F}
-nrows <- nrow(article_text)
-ncols <- ncol(article_text)
+nrows <- nrow(articles_text)
+ncols <- ncol(articles_text)
 
 glue::glue("The number of rows is {nrows}")
 glue::glue("The number of columns is {ncols}")
@@ -112,19 +126,46 @@ glue::glue("The number of columns is {ncols}")
 
 top_20_bigrams <-  read.csv("./data/top_20_bigrams.csv")
 
+top_20_bigrams <- top_20_bigrams %>%
+  mutate(bigram = fct_reorder(bigram, n))
+
 kable(top_20_bigrams, caption="Top 20 Bigrams")
 
+ggplot(top_20_bigrams, aes(n, bigram, fill=n)) +
+  geom_bar(stat="identity", position="dodge") +
+  labs(title = "Twenty Most Common Two-Word Phrases in Articles By Raymond Moley, 1942-1960",
+        x = "Count Across All Articles",
+        y = "Two-Word Phrase") 
 ```
 
 
 ## Economic vs Political Articles Over Time
+
+
+I generated the lists to determine economic and political articles using ChatGPT, giving it the following prompts. 
+
+### For economic words:
+
+"Give me a list of words in the english language that have an economic connotation."
+"Add the words economy, economic, money, and union"
+```{r echo = F}
+
+economic_terms <- read.csv("./data/Economic_Terms.csv")
+kable(head(economic_terms, 20), caption="Sample of Economic Terms")
+
+```
+### For political words:
+
+"Give me a list of words in the English language that have a political connotation specific to the years 1932-1960 but also general political terms. Specific to american politics."
   
 ```{r echo = F}
 
 political_terms <- read.csv("./data/Political_Terms.csv")
+kable(head(political_terms, 20), caption="Sample of Political Terms")
 
-economic_terms <- read.csv("./data/Economic_Terms.csv")
+```
 
+```{r echo = F}
 one_word_per_row <- read.csv("./data/one_word_per_row.csv")
 
 count_word_per_year <- function(data, target_word) {
@@ -193,22 +234,24 @@ ggplot(article_type_by_year, aes(year, n, fill=type)) +
   
 ```{r echo = F}
 
-nixon_articles <- article_text %>%
+articles_text <- rename(articles_text, sentence = value)
+
+nixon_articles <- articles_text %>%
   filter(str_detect(sentence, "Nixon")) %>%
   select(filename, year) %>%
   distinct(filename, year)
 
-goldwater_articles <- article_text %>%
+goldwater_articles <- articles_text %>%
   filter(str_detect(sentence, "Goldwater")) %>%
   select(filename, year) %>%
   distinct(filename, year)
 
-roosevelt_articles <- article_text %>%
+roosevelt_articles <- articles_text %>%
   filter(str_detect(sentence, "Roosevelt")) %>%
   select(filename, year) %>%
   distinct(filename, year)
 
-dewey_articles <- article_text %>%
+dewey_articles <- articles_text %>%
   filter(str_detect(sentence, "Dewey")) %>%
   select(filename, year) %>%
   distinct(filename, year)
@@ -218,7 +261,7 @@ nrc_sentiments <- get_sentiments("nrc")
 afinn_sentiments <- get_sentiments("afinn")
 
 ```
-Moley was an adviser to presidents Thomas Dewey in 1944 and 1948, Richard Nixon in 1960,and Barry Goldwater in 1964. Note that Goldwater's election is outside the range of these articles so there is no coverage of him yet. He virtually advised every republican presidential candidate from 1936-1964, while also maintaining his role as a political columnist for Newsweek. His duel role in political journalism and political advising makes his reporting particularly interesting to look at, specifically his coverage of the candidates he associated with and the sentiment of this coverage. 
+Moley was an adviser to presidents Thomas Dewey in 1944 and 1948, Richard Nixon in 1960,and Barry Goldwater in 1964. Note that Goldwater's election is outside the range of these articles so there is no coverage of him. He virtually advised every republican presidential candidate from 1942-1964, while also maintaining his role as a political columnist for Newsweek. His duel role in political journalism and political advising makes his reporting particularly interesting to look at, specifically his coverage of the candidates he associated with and the sentiment of this coverage. 
 
 ### Dewey
 Moley first covered Dewey in October 1942, which is two years before Dewey took office for the first time. 
@@ -234,7 +277,7 @@ moment nothing so occupies the attention of several putative Presidential candid
 
 ```{r echo = F, results = 'hide', error=F, warning=F, message=F}
 
-dewey_text <- article_text %>%
+dewey_text <- articles_text %>%
   select(filename, year, sentence) %>%
   filter(filename %in% dewey_articles$filename)
 
@@ -255,16 +298,16 @@ dewey_sentiments_all <- dewey_sentiments_all %>%
   mutate(percent = percent(pct_total)) %>%
   mutate(president = "Dewey")
 
-ggplot(dewey_sentiments_all, aes(x="", y=pct_total, fill=sentiment)) +
-  geom_bar(stat="identity", width=1) +
-  coord_polar("y", start=0) +
-  geom_text(aes(label = percent),
-            position = position_stack(vjust = 0.5)) +
-  labs(title = "Sentiment Percentage of Articles by Raymond Moley Mentioning Thomas Dewey") + 
-  theme(axis.ticks.x=element_blank(),
-        axis.text.x=element_blank(),
-        axis.title.x=element_blank(),
-        axis.title.y=element_blank())
+
+dewey_sentiments_all <- dewey_sentiments_all %>%
+  mutate(sentiment = fct_reorder(sentiment, desc(percent)))
+
+ggplot(dewey_sentiments_all, aes(sentiment, percent, fill=president)) +
+  geom_bar(stat="identity", position="dodge") +
+  labs(title = "Presence of Sentiment in Articles by Raymond Moley Mentioning Thomas Dewey",
+        x = "Sentiment",
+        y = "Percentage of Total Text") + 
+  theme(axis.text.x = element_text(angle = 45, vjust=0.5)) 
 
 
 ```
@@ -277,7 +320,7 @@ Example of anticipation:
 "But while these eminent men have been sweeping this state over and over, a far, far more important operation has been in action—something to reckon with after Warren, Nixon, Knowland, Knight, even Mr. Eisenhower, have vanished from the front pages."
 ```{r echo = F, results = 'hide', error=F, warning=F, message=F}
 
-nixon_text <- article_text %>%
+nixon_text <- articles_text %>%
   select(filename, year, sentence) %>%
   filter(filename %in% nixon_articles$filename)
 
@@ -297,16 +340,15 @@ nixon_sentiments_all <- nixon_sentiments_all %>%
   mutate(percent = percent(pct_total)) %>%
   mutate(president = "Nixon")
 
-ggplot(nixon_sentiments_all, aes(x="", y=pct_total, fill=sentiment)) +
-  geom_bar(stat="identity", width=1) +
-  coord_polar("y", start=0) +
-  geom_text(aes(label = percent),
-            position = position_stack(vjust = 0.5)) +
-  labs(title = "Sentiment Percentage of Articles by Raymond Moley Mentioning Richard Nixon") + 
-  theme(axis.ticks.x=element_blank(),
-        axis.text.x=element_blank(),
-        axis.title.x=element_blank(),
-        axis.title.y=element_blank())
+nixon_sentiments_all <- nixon_sentiments_all %>%
+  mutate(sentiment = fct_reorder(sentiment, desc(percent)))
+
+ggplot(nixon_sentiments_all, aes(sentiment, percent, fill=president)) +
+  geom_bar(stat="identity", position="dodge") +
+  labs(title = "Presence of Sentiment in Articles by Raymond Moley Mentioning Richard Nixon",
+        x = "Sentiment",
+        y = "Percentage of Total Text") + 
+  theme(axis.text.x = element_text(angle = 45, vjust=0.5)) 
 
 
 ```
@@ -326,7 +368,9 @@ ggplot(nixon_dewey_sentiments, aes(sentiment, percent, fill=president)) +
   scale_fill_manual(values = c("forestgreen", "purple"))
 
 
+
 ```
+The graph above shows that for words with a generally encouraging connotation, such as joy, anticipation, trust, positive, were used to describe Nixon rather than Dewey. We can also see that words with a generally discouraging connotation, such as negative, fear, anger, and disgust, were used to describe Dewey at a higher rate than to describe Nixon. This shows a clear distinction between how Moley referred to both men in his writing, and that he had a clear bias toward Nixon.  
 
 
 ## Overall Sentiment Analysis 
@@ -334,7 +378,7 @@ ggplot(nixon_dewey_sentiments, aes(sentiment, percent, fill=president)) +
 ### All Articles
 ```{r echo = F, results = 'hide', error=F, warning=F, message=F}
 
-all_text_tokenized <- article_text %>% 
+all_text_tokenized <- articles_text %>% 
   select(sentence) %>% 
   mutate(sentence = str_replace_all(sentence, "- ", "")) %>% 
   unnest_tokens(word, sentence) %>% 
@@ -354,7 +398,7 @@ ggplot(sentiments_all, aes(x="", y=pct_total, fill=sentiment)) +
   coord_polar("y", start=0) +
   geom_text(aes(label = percent),
             position = position_stack(vjust = 0.5)) +
-  labs(title = "Sentiment Percentage of Articles by Raymond Moley, 1942 - 1964") + 
+  labs(title = "Sentiment Percentage of Articles by Raymond Moley, 1942 - 1960") + 
   theme(axis.ticks.x=element_blank(),
         axis.text.x=element_blank(),
         axis.title.x=element_blank(),
@@ -366,7 +410,7 @@ ggplot(sentiments_all, aes(x="", y=pct_total, fill=sentiment)) +
 ### By Decade
 ```{r echo = F, results = 'hide', error=F, warning=F, message=F}
 #fourties
-fourties_text <- article_text %>% 
+fourties_text <- articles_text %>% 
   filter((round(year / 10) * 10) == 1940)
 
 fourties_text_tokenized <- fourties_text %>% 
@@ -386,7 +430,7 @@ fourties_sentiments <- fourties_sentiments %>%
   mutate(decade = "Fourties")
 
 #fifties
-fifties_text <- article_text %>% 
+fifties_text <- articles_text %>% 
   filter((round(year / 10) * 10) == 1950)
 
 fifties_text_tokenized <- fifties_text %>% 
@@ -406,7 +450,7 @@ fifties_sentiments <- fifties_sentiments %>%
   mutate(decade = "Fifties")
 
 #sixties
-sixties_text <- article_text %>% 
+sixties_text <- articles_text %>% 
   filter((round(year / 10) * 10) == 1960)
 
 sixties_text_tokenized <- sixties_text %>% 
@@ -437,3 +481,38 @@ ggplot(decade_sentiment_all, aes(sentiment, percent, fill=decade)) +
   scale_fill_manual(values = c("orange", "purple", "navy"))
 
 ```
+
+## Topic Model 
+```{r echo = F, results = 'hide', error=F, warning=F, message=F}
+topics <- read.csv("./data/topics.csv")
+
+kable(topics, caption="Topics")
+
+vizDataFrame <- read.csv("./data/vizDataFrame.csv")
+
+ggplot(vizDataFrame, aes(x=decade, y=value, fill=category)) + 
+  geom_bar(stat = "identity") + ylab("proportion") + 
+  scale_fill_manual(values = paste0(alphabet(20), "FF"), name = "decade") + 
+  theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
+   scale_fill_manual(values=c("#9933FF",
+                              "#33FFFF",
+                              "red",
+                              "yellow",
+                              "darkblue",
+                              "green"))+
+   #                           "blue"))+ 
+   #                           #"pink",
+   #                           #"gray",
+   #                           #"orange")) +
+  labs(title = "Common Narratives in Raymond Moley's Reporting")
+```
+
+## Sample Codes 
+
+**federal government** - Anything descriptive about the federal government in terms of entity or location
+
+**economic policy** - Describing or critiquing policy, habits, or status of the economy and any specific person's interactions or influence on it. 
+
+**commentary** - Any statements of clear opinion, not based or citing of facts. 
+
+**election** - Relating to or commenting on an ongoing, past, or future election, its candidates, its status, and/or expected or hoped-for outcome.

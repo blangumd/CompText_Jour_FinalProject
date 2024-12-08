@@ -12,228 +12,82 @@ library(rio)
 library(tidytext)
 library(quanteda)
 library(knitr)
-#install.packages("pdftools")
+library(forcats)
+library(tm)
+library(topicmodels)
+library(lda)
+library(ldatuning)
 ```
 
-#Make a dataframe of all the names of the non-ai files 
 
 ```{r}
 #from: https://stackoverflow.com/a/68032558
 getMatch = function(rexp, str) regmatches(str, regexpr(rexp, str))
 
-not_ai_index <- list.files("./moley_newsweek/not_ai", pattern="*txt") %>% 
-  as.data.frame() |>
-  rename(filename = 1) |> 
-  mutate(index = row_number()) 
+index <- read.csv("./AI_extracted_all/moley_extracted_index.csv")
 
-#get date from file name
-not_ai_index <- not_ai_index %>%
-  mutate(date = getMatch("[0-9]{4}-[0-9]{2}-[0-9]{2}",filename))
+index <- rename(index, filename = new_name)
 
-#extract year into own column
-not_ai_index <- not_ai_index %>%
-  mutate(year = getMatch("[0-9]{4}", date))
-  
-not_ai_index <- not_ai_index %>%
-  mutate(year = as.integer(year)) 
+#remove duplicate files
 
-#extract month into own column
-not_ai_index <- not_ai_index %>%
-  mutate(month = str_replace_all(getMatch("-[0-9]{2}-", date), "-", ""))
+index <- index %>% distinct(index$filename, .keep_all = TRUE)
 
-not_ai_index <- not_ai_index %>%
-  mutate(month = as.integer(month)) 
 
-#extract day into own column
-not_ai_index <- not_ai_index %>%
-  mutate(day = str_replace_all(str_replace_all(getMatch("-[0-9]{2}_", filename), "-", ""), "_", ""))
 
-not_ai_index <- not_ai_index %>%
-  mutate(day = as.integer(day)) 
-
-not_ai_index <- not_ai_index %>%
-  select(index, filename, date, year, month, day)
-
-write.csv(not_ai_index, "not_ai_index.csv")
-```
-#Make a dataframe of all the names of the ai files 
-
-```{r}
-ai_index <- read.csv("./extracted_AI_moley_index_nov_20.csv")
-
-ai_index_temp <- ai_index %>%
-  select(filename, date2, Year, month_num, day)
-
-ai_index_temp <- 
-  rename(ai_index_temp, date = date2, year = Year, month = month_num)
-
-ai_index <- ai_index_temp
-
-write.csv(ai_index_temp, "ai_index.csv")
-
-```
-
-# Combine AI and Non-AI indexes
-
-```{r}
-article_index <- not_ai_index %>%
-  bind_rows(ai_index_temp)
-
-write.csv(ai_index_temp, "article_index.csv")
 
 ```
 
 # Compiling text
 ```{r}
 #Compiling text for moley_newsweek
-compile_not_ai <- function(filename) {
-    articles_df_temp <-read_lines(glue::glue("./moley_newsweek/not_ai/{filename}"))%>%
+compile_text <- function(filename) {
+    articles_df_temp <-read_lines(glue::glue("./AI_extracted_all/{filename}"))%>%
     as_tibble() %>%
     mutate(filename = filename)
   # Bind results to master articles_df
   # <<- returns to global environment
-    not_ai_articles_df <<- not_ai_articles_df %>%
+    articles_text <<- articles_text %>%
       bind_rows(articles_df_temp)
 }
 
-compile_ai <- function(filename) {
-  
-    articles_df_temp_2 <- read_lines(glue::glue("./moley_newsweek/ai/{filename}"))%>%
-    as_tibble() %>%
-    mutate(filename = filename)
-  
-  # Bind results to master articles_df
-  # <<- returns to global environment
-    ai_articles_df <<- ai_articles_df %>%
-      bind_rows(articles_df_temp_2)
-}
+# Get rid
+articles_text <- tibble()
 
-###
-# Create elements needed to run function
-###
+sapply(index$filename, compile_text)
 
-# Create empty tibbles to store results
-not_ai_articles_df <- tibble()
+articles_text <- left_join(articles_text, select(index, filename, Year), by = "filename")
 
-ai_articles_df <- tibble()
+articles_text <- rename(articles_text, year = Year)
 
-sapply(not_ai_index$filename, compile_not_ai)
-
-sapply(ai_index$filename, compile_ai)
-
+articles_text <- articles_text %>%
+  select(value, year, filename)
 
 ```
-# Clean up not ai articles and get lines into dataframe 
+# Clean up articles text
 ```{r}
 
-not_ai_articles_df$value <- iconv(not_ai_articles_df$value, from = "", to = "UTF-8", sub = "")  # Replace invalid characters with ""
+articles_text$value <- iconv(articles_text$value, from = "", to = "UTF-8", sub = "")  # Replace invalid characters with ""
 
 # Additional step to remove non-printable and problematic characters
-not_ai_articles_df$value <- gsub("[^[:print:]]+", " ", not_ai_articles_df$value)  # Remove non-printable characters
-not_ai_articles_df$value <- gsub("\\s+", " ", trimws(not_ai_articles_df$value))  # Normalize whitespace
+articles_text$value <- gsub("[^[:print:]]+", " ", articles_text$value)  # Remove non-printable characters
 
-# Function to split text into chunks of 12 words
-split_into_chunks <- function(text, n = 12) {
-  words <- unlist(strsplit(text, "\\s+"))  # Split text into words
-  split_words <- split(words, ceiling(seq_along(words) / n))  # Group words into chunks
-  chunks <- sapply(split_words, paste, collapse = " ")  # Combine words back into strings
-  return(chunks)
-}
-
-# Process the dataframe
-library(dplyr)
-
-not_ai_lines <- not_ai_articles_df %>%
-  rowwise() %>%
-  mutate(
-    text_chunks = list(split_into_chunks(value))
-  ) %>%
-  unnest(text_chunks) %>%
-  select(filename, text_chunks) %>%
-  rename(sentence = text_chunks)
-
-not_ai_lines <- not_ai_lines %>%
-  inner_join(not_ai_index, c("filename")) 
-not_ai_lines <- not_ai_lines %>%
-  select(sentence, date, year, month, day, filename)
-# get word counts
-not_ai_word_counts <- not_ai_lines
-not_ai_word_counts <- not_ai_word_counts %>%
-    mutate(word_count = str_count(sentence, "\\S+")) %>% # Count words in each sentence
-    group_by(filename) %>%
-    summarise(total_word_count = sum(word_count, na.rm = TRUE))
-
-not_ai_index <- not_ai_index %>%
-  inner_join(not_ai_word_counts, "filename")
+articles_text$value <- gsub("-", "", articles_text$value)  
 
 
-```
+articles_text$value <- gsub("\\s+", " ", trimws(articles_text$value))  # Normalize whitespace
 
-# Clean up ai articles and get lines into dataframe 
-```{r}
-
-ai_articles_df <- rename(ai_articles_df, sentence = value)
-
-ai_articles_df$sentence <- iconv(ai_articles_df$sentence, from = "", to = "UTF-8", sub = "")  # Replace invalid characters with ""
-
-# Additional step to remove non-printable and problematic characters
-ai_articles_df$sentence <- gsub("[^[:print:]]+", " ", ai_articles_df$sentence)  # Remove non-printable characters
-ai_articles_df$sentence <- gsub("\\s+", " ", trimws(ai_articles_df$sentence))  # Normalize whitespace
-
-#remove blank lines 
-ai_articles_df <- ai_articles_df %>%
-  
-  filter(trimws(sentence) != "") 
+write.csv(articles_text, "./articles_text.csv")
 
 
-# Process the dataframe
-library(dplyr)
-
-ai_lines <- ai_articles_df %>%
-  select(filename, sentence)
-
-ai_lines <- ai_lines %>%
-  inner_join(ai_index, c("filename")) 
-
-ai_lines
-
-ai_lines <- ai_lines %>%
-  select(sentence, date, year, month, day, filename)
-# Print the result
-
-ai_word_counts <- ai_lines
-ai_word_counts <- ai_word_counts %>%
-    mutate(word_count = str_count(sentence, "\\S+")) %>% # Count words in each sentence
-    group_by(filename) %>%
-    summarise(total_word_count = sum(word_count, na.rm = TRUE))
-
-ai_index <- ai_index %>%
-  inner_join(ai_word_counts, c("filename"))
-
-article_index <- NULL
-
-article_index <- ai_index %>%
-  bind_rows(not_ai_index)
-  
-write.csv(article_index,"./article_index.csv")
-
-
-```
-# Merge text into one large dataframe 
-```{r}
-articles_lines <- not_ai_lines %>%
-  bind_rows(ai_lines)
-
-write.csv(articles_lines,"./articles_lines.csv")
 
 ```
 
 # Make a dataframe with one word per row
 ```{r}
-article_text <-  read.csv("./articles_lines.csv")
+articles_text <- articles_text %>% rename(sentence = value)
 
 data(stop_words)
-one_word_per_row <- article_text %>% mutate(sentence= str_squish(sentence)) |> 
+one_word_per_row <- articles_text %>% mutate(sentence= str_squish(sentence)) |> 
   mutate(text = tolower(sentence)) |>  
   mutate(text = gsub("\\d+", "", text)) |>
   mutate(text = str_replace_all(text, "- ", "")) %>% 
@@ -246,7 +100,7 @@ write_csv(one_word_per_row, "./one_word_per_row.csv")
 ```
 # Create bigrams and clean them
 ```{r}
-bigrams <- article_text %>% mutate(sentence= str_squish(sentence)) |> 
+bigrams <- articles_text %>% mutate(sentence= str_squish(sentence)) |> 
   mutate(text = tolower(sentence)) |>  
   mutate(text = gsub("\\d+", "", text)) |>
   mutate(text = str_replace_all(text, "raymond", "")) %>% 
@@ -264,15 +118,16 @@ bigrams <- article_text %>% mutate(sentence= str_squish(sentence)) |>
   filter(!word == "patent office") %>%
   filter(!word == "u.s. patent") %>%
   filter(!word == "u.s patent") %>%
+  filter(!word == "avoid overlapping") %>%
+  filter(!word == "overlapping columns") %>%
+  filter(!word == "extracted text") %>%
+  filter(!word == "provided pdf") %>%
+  filter(!word == "pdf formatted") %>%
+  filter(!word == "provided text") %>%
   filter(!word == "provided note") %>%
   filter(!word == "column layout") %>%
-
   filter(!word == "registered u.s") %>%
-
   filter(!is.na(word))
-
-bigrams <- bigrams %>%
-  select(word, date, year, month, day, filename)
 
 bigrams
 ```
@@ -295,17 +150,171 @@ bigram_counts <- bigrams_filtered %>%
   count(word1, word2, sort = TRUE) %>% 
   filter(!is.na(word1))
 
-bigram_counts
-
 write.csv(bigram_counts, "bigram_counts.csv")
 
-  
 top_20_bigrams <- bigram_counts |> 
   head(20) |> 
-  mutate(bigram = paste(word1, " ", word2)) |> 
+  mutate(bigram = paste(word1, "", word2)) |> 
   select(bigram, n)
+
 
 top_20_bigrams
 write.csv(top_20_bigrams, "top_20_bigrams.csv")
 
 ```
+
+
+```{r}
+textdata <- articles_text %>%
+  select(filename, sentence, year) %>% 
+  as.data.frame() %>% 
+  rename(doc_id = filename, text= sentence)
+
+# load stopwords
+english_stopwords <- readLines("https://slcladal.github.io/resources/stopwords_en.txt", encoding = "UTF-8")
+# create corpus object
+corpus <- Corpus(DataframeSource(textdata))
+# Preprocessing chain
+processedCorpus <- tm_map(corpus, content_transformer(tolower))
+processedCorpus <- tm_map(processedCorpus, removeWords, english_stopwords)
+processedCorpus <- tm_map(processedCorpus, removePunctuation, preserve_intra_word_dashes = TRUE)
+processedCorpus <- tm_map(processedCorpus, removeNumbers)
+processedCorpus <- tm_map(processedCorpus, stemDocument, language = "en")
+processedCorpus <- tm_map(processedCorpus, stripWhitespace)
+```
+
+```{r tm3a}
+#DTM: rows correspond to the documents in the corpus. Columns correspond to the terms in the documents. Cells correspond to the weights of the terms. (Girder)
+# compute document term matrix with terms >= minimumFrequency
+minimumFrequency <- 5
+DTM <- DocumentTermMatrix(processedCorpus, control = list(bounds = list(global = c(minimumFrequency, Inf))))
+# have a look at the number of documents and terms in the matrix
+dim(DTM)
+# due to vocabulary pruning, we have empty rows in our DTM
+# LDA does not like this. So we remove those docs from the
+# DTM and the metadata
+sel_idx <- slam::row_sums(DTM) > 0
+DTM <- DTM[sel_idx, ]
+textdata <- textdata[sel_idx, ]
+
+``` 
+### New decade column created
+```{r}
+textdata$decade <- paste0(substr(textdata$year, 0, 3), "0")
+```
+
+### Set K Value for number of topics
+```{r}
+# number of topics
+# K <- 20
+K <- 6
+```
+
+### Run LDA, Latent Dirichlet Allocation
+```{r}
+# set random number generator seed
+set.seed(9161)
+#Latent Dirichlet Allocation, LDA
+topicModel2 <- LDA(DTM, K, method="Gibbs", control=list(iter = 500, verbose = 25, alpha = 0.2))
+tmResult <- posterior(topicModel2)
+theta <- tmResult$topics
+beta <- tmResult$terms
+topicNames <- apply(terms(topicModel2, 10), 2, paste, collapse = " ")  # reset topicnames
+```
+### Mean topic proportions per decade
+
+```{r}
+# Step 1: Check dimensions
+n_theta <- nrow(theta)
+n_textdata <- length(textdata$decade)
+
+cat("Number of rows in theta: ", n_theta, "\n")
+cat("Number of documents in textdata: ", n_textdata, "\n")
+```
+
+
+```{r}
+# Check if textdata contains all the documents in theta
+common_ids <- intersect(rownames(theta), textdata$doc_id) # Assuming textdata has a 'doc_id' column
+
+# Filter textdata to include only the documents present in theta
+textdata_filtered <- textdata[textdata$doc_id %in% common_ids, ]
+
+# Check dimensions after filtering
+n_textdata_filtered <- nrow(textdata_filtered)
+cat("Number of documents in filtered textdata: ", n_textdata_filtered, "\n")
+```
+
+```{r}
+# Ensure the lengths match now
+if (n_theta != n_textdata_filtered) {
+  stop("The number of rows in 'theta' still does not match the length of 'textdata_filtered$decade'.")
+}
+
+# Align rownames of theta with filtered textdata
+theta_aligned <- theta[rownames(theta) %in% textdata_filtered$doc_id, ]
+
+# Optional: Verify the order of documents
+if (!all(rownames(theta_aligned) == textdata_filtered$doc_id)) {
+  # If the order doesn't match, reorder one to match the other
+  textdata_filtered <- textdata_filtered[match(rownames(theta_aligned), textdata_filtered$doc_id), ]
+}
+
+# Ensure they are now aligned and can be combined
+if (!all(rownames(theta_aligned) == textdata_filtered$doc_id)) {
+  stop("The document IDs still do not match. Please check the data alignment.")
+}
+
+# Step 2: Combine data
+topic_data <- data.frame(theta_aligned, decade = textdata_filtered$decade)
+
+# Step 3: Aggregate data
+topic_proportion_per_decade <- aggregate(. ~ decade, data = topic_data, FUN = mean)
+
+
+# get mean topic proportions per decade
+# topic_proportion_per_decade <- aggregate(theta, by = list(decade = textdata$decade), mean)
+# set topic names to aggregated columns
+colnames(topic_proportion_per_decade)[2:(K+1)] <- topicNames
+# reshape data frame
+vizDataFrame <- melt(topic_proportion_per_decade, id.vars = "decade")
+
+```
+#Examine topic names
+
+```{r}
+#enframe(): Converts a named list into a dataframe.
+topics <- enframe(topicNames, name = "number", value = "text") %>% 
+  unnest(cols = c(text)) 
+  
+write.csv(topics, "topics.csv")
+
+```
+### Add categories
+```{r}
+
+
+
+vizDataFrame <- vizDataFrame %>% 
+  mutate(category = case_when(
+    str_detect(variable,  "state feder law nation govern unit constitut make depart foreign") ~ "federal_government",
+    str_detect(variable, "year govern tax busi product power money plan feder cost") ~ "economic",
+    str_detect(variable, "presid congress offic committe newsweek senat hous bill democrat republican") ~ "political",
+    str_detect(variable, "moley raymond provid perspect text imag column minor extract due") ~ "meta_data",
+     str_detect(variable, "polit great public american man social men peopl british econom") ~ "american_ideals",
+    str_detect(variable, "parti vote elect republican democrat state polit labor candid peopl") ~ "labor_party_republican",
+    ))
+
+write.csv(vizDataFrame, "vizDataFrame.csv")
+
+```
+
+# Fact Check and Validate Topics
+
+Topic 1: lynchings "counti citi night mile jail day town morn march juli" 
+Topic 2: criticizing_lynchings "law crime peopl lynch great excit state good citizen countri" 
+Topic 3: negro_lynching "lynch mob negro jail men hang night crowd prison attempt" 
+Topic 4: female_victim "negro murder white lynch man kill year assault charg mrs" 
+Topic 5: 5_legal_proceedings "sheriff state court juri governor order offic prison judg deputi" 
+Topic 6:  lynch_mob "bodi fire shot hang hous tree found street rope door" 
+
