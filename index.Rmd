@@ -1,7 +1,7 @@
 ---
 title: "Content Analysis of Raymond Moley’s Reporting from 1942 - 1964"
 author: "Bridget Lang"
-date: '2024-12-2'
+date: '2024-12-8'
 output: html_document
 ---
 *Disclaimer: This project is being conducted in support of Dr. Rob Wells, Associate Professor at the Phillip Merril College of Journalism, University of Maryland. Some verbiage in this summary is drawn directly from provided documentation about the project.* 
@@ -391,19 +391,14 @@ sentiments_all <- all_text_tokenized %>%
   mutate(pct_total =round(n/sum(n), digits=2))
 
 sentiments_all <- sentiments_all %>%
-  mutate(percent = percent(pct_total))
+  mutate(percent = percent(pct_total)) %>%
+  mutate(sentiment = fct_reorder(sentiment, desc(percent)))
 
-ggplot(sentiments_all, aes(x="", y=pct_total, fill=sentiment)) +
-  geom_bar(stat="identity", width=1) +
-  coord_polar("y", start=0) +
-  geom_text(aes(label = percent),
-            position = position_stack(vjust = 0.5)) +
-  labs(title = "Sentiment Percentage of Articles by Raymond Moley, 1942 - 1960") + 
-  theme(axis.ticks.x=element_blank(),
-        axis.text.x=element_blank(),
-        axis.title.x=element_blank(),
-        axis.title.y=element_blank())
-
+ggplot(sentiments_all, aes(sentiment, percent, fill=percent)) +
+  geom_bar(stat="identity", position="dodge") +
+  labs(title = "Presence of Sentiment in Articles by Raymond Moley, 1942-1964",
+        x = "Sentiment",
+        y = "Percentage of Total Text")
 
 ```
 
