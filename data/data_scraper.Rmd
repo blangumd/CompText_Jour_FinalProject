@@ -126,6 +126,7 @@ bigrams <- articles_text %>% mutate(sentence= str_squish(sentence)) |>
   filter(!word == "provided text") %>%
   filter(!word == "provided note") %>%
   filter(!word == "column layout") %>%
+   filter(!word == "text file") %>%
   filter(!word == "registered u.s") %>%
   filter(!is.na(word))
 

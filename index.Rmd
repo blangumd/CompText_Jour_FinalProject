@@ -24,11 +24,6 @@ https://www.britannica.com/biography/Raymond-Charles-Moley
 https://www.presidency.ucsb.edu/documents/remarks-presenting-the-presidential-medal-freedom-eight-journalists
 https://www.britannica.com/event/New-Deal
 
-## Overview of data, and a plan for content analysis
-
-https://github.com/blangumd/CompText_Jour_FinalProject/blob/main/data/article_lines.csv
-
-The data itself is currently a collection of 40 articles, written by Raymond Moley for Newsweek between the years 1942 and 1960. For each article there is a known filename, length, and date of publication, along with the contents of each article. 
 
 ## Libraries Used
 
@@ -261,19 +256,8 @@ nrc_sentiments <- get_sentiments("nrc")
 afinn_sentiments <- get_sentiments("afinn")
 
 ```
-Moley was an adviser to presidents Thomas Dewey in 1944 and 1948, Richard Nixon in 1960,and Barry Goldwater in 1964. Note that Goldwater's election is outside the range of these articles so there is no coverage of him. He virtually advised every republican presidential candidate from 1942-1964, while also maintaining his role as a political columnist for Newsweek. His duel role in political journalism and political advising makes his reporting particularly interesting to look at, specifically his coverage of the candidates he associated with and the sentiment of this coverage. 
 
 ### Dewey
-Moley first covered Dewey in October 1942, which is two years before Dewey took office for the first time. 
-
-Example of positive coverage:
-
-"But Dewey can afford to coast because, if the polls are correct, nothing short of the commission of homicide or arson could lose him the election."
-
-Example of negative coverage: 
-
-"Disaster befell Thomas E. Dewey in 1948 because his great confidence in polls shaped his carefree, "it's-in-the-bag" campaign. But at the
-moment nothing so occupies the attention of several putative Presidential candidates as polls."
 
 ```{r echo = F, results = 'hide', error=F, warning=F, message=F}
 
@@ -313,11 +297,7 @@ ggplot(dewey_sentiments_all, aes(sentiment, percent, fill=president)) +
 ```
 
 ### Nixon
-Moley first covered Nixon in May 1960, which is the same year that Moley was an acting adviser for Nixon. 
 
-Example of anticipation:
-
-"But while these eminent men have been sweeping this state over and over, a far, far more important operation has been in action—something to reckon with after Warren, Nixon, Knowland, Knight, even Mr. Eisenhower, have vanished from the front pages."
 ```{r echo = F, results = 'hide', error=F, warning=F, message=F}
 
 nixon_text <- articles_text %>%
@@ -370,7 +350,7 @@ ggplot(nixon_dewey_sentiments, aes(sentiment, percent, fill=president)) +
 
 
 ```
-The graph above shows that for words with a generally encouraging connotation, such as joy, anticipation, trust, positive, were used to describe Nixon rather than Dewey. We can also see that words with a generally discouraging connotation, such as negative, fear, anger, and disgust, were used to describe Dewey at a higher rate than to describe Nixon. This shows a clear distinction between how Moley referred to both men in his writing, and that he had a clear bias toward Nixon.  
+  
 
 
 ## Overall Sentiment Analysis 
@@ -511,3 +491,27 @@ ggplot(vizDataFrame, aes(x=decade, y=value, fill=category)) +
 **commentary** - Any statements of clear opinion, not based or citing of facts. 
 
 **election** - Relating to or commenting on an ongoing, past, or future election, its candidates, its status, and/or expected or hoped-for outcome.
+
+## Essay
+The data itself is currently a collection of 105 articles, written by Raymond Moley for Newsweek between the years 1942 and 1960. For each article there is a known filename, length, and date of publication, along with the contents of each article. There were a few iterations of importing data before a final process and dataset was established. The issue mainly lied in the way that the articles needed to be scanned, as the format was columns, which are difficult for a usual PDF scanning software to decipher. Dr. Wells used a variety of methods, including artififical intelligence, to gather these articles and put them into a final set of 105 articles with an accompanying index. All but one of the articles written in 1948 were corrupted, showing up as lines of "[?]" rather than text. The cause of this issue is unknown, but it is interesting that it was all articles from 1948. I excluded the one functional article from 1948 in order to prevent the data being skewed in any analysis done based on year or decade. 
+
+I created a table of the top 20 bigrams, the two most common of which being "republican party" and "federal government". This is not a surprise given that Moley was an advisor for every republican presidential candidate from 1934-1960. The second most common after these two bigram was "democratic party", followed by "vice president", then "federal aid". I think that "federal aid" is the first bigram of significant interest, given that the first four are no surprise given the context of the writing. "Federal aid" implies discussion of policy or use of government funds, which was likely a common theme for Moley's writings. 
+
+Note that Goldwater's election is outside the range of these articles so there is no coverage of him. He virtually advised every republican presidential candidate from 1942-1964, while also maintaining his role as a political columnist for Newsweek. His duel role in political journalism and political advising makes his reporting particularly interesting to look at, specifically his coverage of the candidates he associated with and the sentiment of this coverage. Moley first covered Thomas Dewey in October 1942, which is two years before Dewey took office for the first time. Moley first covered Nixon in May 1960, which is the same year that Moley was an acting adviser for Nixon. For words with a generally encouraging connotation, such as joy, anticipation, trust, positive, were used to describe Nixon rather than Dewey. We can also see that words with a generally discouraging connotation, such as negative, fear, anger, and disgust, were used to describe Dewey at a higher rate than to describe Nixon. This shows a clear distinction between how Moley referred to both men in his writing, and that he had a clear bias toward Nixon.
+
+Both figures had the same four most common sentiments, which are "positive", "trust", "negative", and then "anticipation". However, in comparing the sentiment analyses of coverage on Nixon vs. coverage on Dewey, there is a clear difference in the attitude and tone that Moley used for each president. 
+
+"But Dewey can afford to coast because, if the polls are correct, nothing short of the commission of homicide or arson could lose him the election."
+
+Example of negative coverage: 
+
+"Disaster befell Thomas E. Dewey in 1948 because his great confidence in polls shaped his carefree, "it's-in-the-bag" campaign. But at the
+moment nothing so occupies the attention of several putative Presidential candidates as polls."
+
+Moley first covered Nixon in May 1960, which is the same year that Moley was an acting adviser for Nixon. 
+
+Example of anticipation:
+
+"But while these eminent men have been sweeping this state over and over, a far, far more important operation has been in action—something to reckon with after Warren, Nixon, Knowland, Knight, even Mr. Eisenhower, have vanished from the front pages."
+The graph above shows that for words with a generally encouraging connotation, such as joy, anticipation, trust, positive, were used to describe Nixon rather than Dewey. We can also see that words with a generally discouraging connotation, such as negative, fear, anger, and disgust, were used to describe Dewey at a higher rate than to describe Nixon. This shows a clear distinction between how Moley referred to both men in his writing, and that he had a clear bias toward Nixon.
+
