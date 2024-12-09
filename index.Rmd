@@ -458,6 +458,9 @@ ggplot(decade_sentiment_all, aes(sentiment, percent, fill=decade)) +
 ```
 
 ## Topic Model 
+
+For some reason the graph below is turning gray. I get the message "Scale for fill is already present. Adding another scale for fill, which will replace the existing scale." when I try to load it, and also trying to load the graph in the topic model sample exercise. I am not sure what to do, looking online did not help. I am uploading a screenshot of the graph here: https://github.com/blangumd/CompText_Jour_FinalProject/blob/main/topic_model_vis.png
+
 ```{r echo = F, results = 'hide', error=F, warning=F, message=F}
 topics <- read.csv("./data/topics.csv")
 
@@ -499,19 +502,11 @@ I created a table of the top 20 bigrams, the two most common of which being "rep
 
 Note that Goldwater's election is outside the range of these articles so there is no coverage of him. He virtually advised every republican presidential candidate from 1942-1964, while also maintaining his role as a political columnist for Newsweek. His duel role in political journalism and political advising makes his reporting particularly interesting to look at, specifically his coverage of the candidates he associated with and the sentiment of this coverage. Moley first covered Thomas Dewey in October 1942, which is two years before Dewey took office for the first time. Moley first covered Nixon in May 1960, which is the same year that Moley was an acting adviser for Nixon. For words with a generally encouraging connotation, such as joy, anticipation, trust, positive, were used to describe Nixon rather than Dewey. We can also see that words with a generally discouraging connotation, such as negative, fear, anger, and disgust, were used to describe Dewey at a higher rate than to describe Nixon. This shows a clear distinction between how Moley referred to both men in his writing, and that he had a clear bias toward Nixon.
 
-Both figures had the same four most common sentiments, which are "positive", "trust", "negative", and then "anticipation". However, in comparing the sentiment analyses of coverage on Nixon vs. coverage on Dewey, there is a clear difference in the attitude and tone that Moley used for each president. 
+Both figures had the same four most common sentiments, which are "positive", "trust", "negative", and then "anticipation". However, in comparing the sentiment analyses of coverage on Nixon vs. coverage on Dewey, there is a clear difference in the attitude and tone that Moley used for each president. For example, in an article Moley wrote in 1950, he states that "Richard Nixon, a young, aggressive, and attractive conservative, will get the Republican nomination almost unopposed." This statement is a clear statement of not only support for Nixon but anticipation that he is going to win the nomination. In contrast, he wrote about Dewey that "disaster befell Thomas E. Dewey in 1948 because his great confidence in polls shaped his carefree, "it's-in-the-bag" campaign. But at the moment nothing so occupies the attention of several putative Presidential candidates as polls." He describes Dewey's attitudes about the election in a almost mocking manner, impLying that his confidence is unfounded and not helpful. 
 
-"But Dewey can afford to coast because, if the polls are correct, nothing short of the commission of homicide or arson could lose him the election."
+In an analysis looking at the number of political vs. economic articles, there were few articles that could be categorized as strictly one or the other. However, in the graph titled "Political vs. Economic Articles Written by Raymond Moley, 1942-1960", it is clear that there was a slight increase in economic articles written between 1953-1960. Although this skew may be due to a higher number of articles in the dataset written within these years, it is interesting to consider what in history during this time may cause this increase in economic themes of Moley's writing. 
 
-Example of negative coverage: 
+The final form of analysis I conducted was a topic model, with k=6 categories generated. It is important to note that there was a category generated of meta data such as the names of articles and the publication that would have been very tedious to remove via code. Thus, there are only five categories that really say much about the themes and narratives of Moley's reporting. The topic that I found the most intriguing was the one I labeled "american_ideals", which included words like "men" and "economy".
 
-"Disaster befell Thomas E. Dewey in 1948 because his great confidence in polls shaped his carefree, "it's-in-the-bag" campaign. But at the
-moment nothing so occupies the attention of several putative Presidential candidates as polls."
 
-Moley first covered Nixon in May 1960, which is the same year that Moley was an acting adviser for Nixon. 
-
-Example of anticipation:
-
-"But while these eminent men have been sweeping this state over and over, a far, far more important operation has been in action—something to reckon with after Warren, Nixon, Knowland, Knight, even Mr. Eisenhower, have vanished from the front pages."
-The graph above shows that for words with a generally encouraging connotation, such as joy, anticipation, trust, positive, were used to describe Nixon rather than Dewey. We can also see that words with a generally discouraging connotation, such as negative, fear, anger, and disgust, were used to describe Dewey at a higher rate than to describe Nixon. This shows a clear distinction between how Moley referred to both men in his writing, and that he had a clear bias toward Nixon.
 
